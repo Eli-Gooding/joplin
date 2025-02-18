@@ -4,12 +4,18 @@ exports.contextConfig = exports.llmConfig = exports.tracingConfig = exports.lang
 const langsmith_1 = require("langsmith");
 const env_1 = require("./env");
 const env = (0, env_1.getEnvVariables)();
-(0, env_1.validateEnvVariables)(env);
-// Initialize LangSmith client
-exports.langsmithClient = new langsmith_1.Client({
+try {
+    (0, env_1.validateEnvVariables)(env);
+}
+catch (error) {
+    console.error('[Config] Environment validation failed:', error.message);
+    throw new Error('Please configure your OpenAI API key in Settings > LangChain.');
+}
+// Initialize LangSmith client only if we have the required keys
+exports.langsmithClient = env.LANGCHAIN_API_KEY ? new langsmith_1.Client({
     apiUrl: env.LANGCHAIN_ENDPOINT,
     apiKey: env.LANGCHAIN_API_KEY,
-});
+}) : null;
 // Configure tracing
 exports.tracingConfig = {
     enabled: true,
@@ -21,6 +27,7 @@ exports.llmConfig = {
     model: env.LANGCHAIN_MODEL || 'gpt-3.5-turbo',
     temperature: parseFloat(env.LANGCHAIN_TEMPERATURE || '0.7'),
     maxTokens: parseInt(env.LANGCHAIN_MAX_TOKENS || '1000', 10),
+    openAIApiKey: env.OPENAI_API_KEY,
 };
 // Context Extraction Configuration
 exports.contextConfig = {

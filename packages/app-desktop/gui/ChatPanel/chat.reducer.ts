@@ -5,7 +5,7 @@ import { ExtractedContext } from '../../services/langchain/contextExtractor';
 export interface ChatMessage {
     id: string;
     content: string;
-    sender: 'user' | 'agent';
+    sender: 'user' | 'agent' | 'error';
     timestamp: number;
     metadata?: {
         contexts?: ExtractedContext[];

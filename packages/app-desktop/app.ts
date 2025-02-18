@@ -36,6 +36,7 @@ import MigrationService from '@joplin/lib/services/MigrationService';
 import { loadCustomCss } from '@joplin/lib/CssUtils';
 import { homedir } from 'os';
 import getDefaultPluginsInfo from '@joplin/lib/services/plugins/defaultPlugins/desktopDefaultPluginsInfo';
+import { registerSettings as registerLangChainSettings } from './services/langchain/settings';
 const electronContextMenu = require('./services/electron-context-menu');
 // import  populateDatabase from '@joplin/lib/services/debug/populateDatabase';
 
@@ -508,6 +509,9 @@ class Application extends BaseApplication {
 		});
 
 		await this.setupCustomCss();
+
+		// Register LangChain settings
+		await registerLangChainSettings();
 
 		// const masterKeys = await MasterKey.all();
 

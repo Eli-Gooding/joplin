@@ -22,6 +22,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({ messages, themeId }) => {
                     <StyledMessage
                         theme={theme}
                         isAgent={message.sender === 'agent'}
+                        sender={message.sender}
                     >
                         {message.content}
                     </StyledMessage>

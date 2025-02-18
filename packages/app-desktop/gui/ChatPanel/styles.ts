@@ -17,18 +17,30 @@ export const StyledMessagesContainer = styled.div<{ theme: ThemeAppearance }>`
     padding: 16px;
 `;
 
-export const StyledMessage = styled.div<{ theme: ThemeAppearance; isAgent: boolean }>`
+export const StyledMessage = styled.div<{ theme: ThemeAppearance; isAgent: boolean; sender?: string }>`
     margin-bottom: 16px;
     padding: 8px 12px;
     border-radius: 8px;
     max-width: 80%;
-    ${props => props.isAgent ? `
-        background-color: ${props.theme.backgroundColor3};
-        margin-right: auto;
-    ` : `
-        background-color: ${props.theme.backgroundColor2};
-        margin-left: auto;
-    `}
+    white-space: pre-wrap;
+    ${props => {
+        if (props.sender === 'error') {
+            return `
+                background-color: ${props.theme.backgroundColor};
+                border: 1px solid ${props.theme.colorError};
+                color: ${props.theme.colorError};
+                margin-right: auto;
+                margin-left: auto;
+            `;
+        }
+        return props.isAgent ? `
+            background-color: ${props.theme.backgroundColor3};
+            margin-right: auto;
+        ` : `
+            background-color: ${props.theme.backgroundColor2};
+            margin-left: auto;
+        `;
+    }}
 `;
 
 export const StyledInputContainer = styled.div<{ theme: ThemeAppearance }>`

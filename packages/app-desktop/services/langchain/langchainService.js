@@ -8,10 +8,28 @@ const config_1 = require("./config");
 const tracer_1 = require("./tracer");
 class LangChainService {
     constructor() {
+        console.log('[LangChainService] Initializing service...');
+        console.log('[LangChainService] Creating ContextExtractor...');
         this.contextExtractor = new contextExtractor_1.ContextExtractor();
         if (config_1.tracingConfig.enabled) {
+            console.log('[LangChainService] Initializing tracer...');
             this.tracer = new tracer_1.ConsoleTracer();
         }
+        console.log('[LangChainService] Initializing ChatOpenAI with config:', {
+            model: config_1.llmConfig.model,
+            temperature: config_1.llmConfig.temperature,
+            maxTokens: config_1.llmConfig.maxTokens,
+            hasApiKey: !!config_1.llmConfig.openAIApiKey,
+            hasTracer: !!this.tracer
+        });
+        // Initialize LLM with tracing
+        this.llm = new openai_1.ChatOpenAI({
+            modelName: config_1.llmConfig.model,
+            temperature: config_1.llmConfig.temperature,
+            maxTokens: config_1.llmConfig.maxTokens,
+            openAIApiKey: config_1.llmConfig.openAIApiKey,
+            callbacks: config_1.tracingConfig.enabled && this.tracer ? [this.tracer] : undefined,
+        });
     }
     /**
      * Process a chat message with the current note's context
@@ -28,8 +46,9 @@ class LangChainService {
             }, { message_length: message.length }, Date.now().toString());
         }
         try {
-            // Extract relevant context from the note
+            console.log('[LangChainService] Extracting context from note...', { noteLength: noteContent.length });
             const contexts = await this.contextExtractor.extractContext(noteContent, message);
+            console.log('[LangChainService] Extracted contexts:', { numContexts: contexts.length });
             // Create system message with context
             const contextText = contexts
                 .map(ctx => ctx.content)
@@ -42,15 +61,9 @@ class LangChainService {
                 Always be concise and relevant to the user's query.`);
             // Create human message
             const humanMessage = new messages_1.HumanMessage(message);
-            // Initialize LLM with tracing
-            this.llm = new openai_1.ChatOpenAI({
-                modelName: config_1.llmConfig.model,
-                temperature: config_1.llmConfig.temperature,
-                maxTokens: config_1.llmConfig.maxTokens,
-                callbacks: config_1.tracingConfig.enabled && this.tracer ? [this.tracer] : undefined,
-            });
-            // Get response from LLM
+            console.log('[LangChainService] Sending request to LLM...');
             const response = await this.llm.call([systemMessage, humanMessage]);
+            console.log('[LangChainService] Received response from LLM:', { responseLength: response.content.length });
             if (this.tracer) {
                 await this.tracer.handleChainEnd({ output: response.content }, Date.now().toString());
             }
@@ -60,7 +73,8 @@ class LangChainService {
             };
         }
         catch (error) {
-            console.error('Error processing message:', error);
+            console.error('[LangChainService] Error processing message:', error);
+            console.error('[LangChainService] Error stack:', error.stack);
             if (this.tracer) {
                 await this.tracer.handleChainError(error, Date.now().toString());
             }

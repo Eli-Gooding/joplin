@@ -6,6 +6,11 @@ const config_1 = require("./config");
 const tracer_1 = require("./tracer");
 class ContextExtractor {
     constructor() {
+        console.log('[ContextExtractor] Initializing...', {
+            chunkSize: config_1.contextConfig.chunkSize,
+            chunkOverlap: config_1.contextConfig.chunkOverlap,
+            maxChunks: config_1.contextConfig.maxChunks
+        });
         this.splitter = new text_splitter_1.RecursiveCharacterTextSplitter({
             chunkSize: config_1.contextConfig.chunkSize,
             chunkOverlap: config_1.contextConfig.chunkOverlap,
@@ -30,7 +35,9 @@ class ContextExtractor {
         }
         try {
             // Split the content into chunks
+            console.log('[ContextExtractor] Splitting content into chunks...');
             const docs = await this.splitter.createDocuments([content]);
+            console.log('[ContextExtractor] Created document chunks:', { numChunks: docs.length });
             // Score and filter chunks
             const scoredChunks = await Promise.all(docs.map(async (doc) => {
                 // For now, simulate scoring - we'll implement real scoring later
@@ -64,7 +71,8 @@ class ContextExtractor {
             return topChunks;
         }
         catch (error) {
-            console.error('Error extracting context:', error);
+            console.error('[ContextExtractor] Error extracting context:', error);
+            console.error('[ContextExtractor] Error stack:', error.stack);
             if (this.tracer) {
                 await this.tracer.handleChainError(error, Date.now().toString());
             }
