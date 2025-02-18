@@ -48,7 +48,10 @@ interface BackgroundWindowStates {
 	[windowId: string]: AppWindowState;
 }
 
+import chatReducer, { ChatState } from './gui/ChatPanel/chat.reducer';
+
 export interface AppState extends State, AppWindowState {
+    chat: ChatState;
 	backgroundWindows: BackgroundWindowStates;
 
 	route: AppStateRoute;
@@ -85,6 +88,11 @@ export function createAppDefaultState(windowContentSize: any, resourceEditWatche
 	return {
 		...defaultState,
 		...createAppDefaultWindowState(),
+		chat: {
+			isOpen: false,
+			messages: [],
+			isLoading: false,
+		},
 		route: {
 			type: 'NAV_GO',
 			routeName: 'Main',
@@ -119,6 +127,14 @@ export default function(state: AppState, action: any) {
 	let newState = state;
 
 	try {
+		// Handle chat actions with the chat reducer
+		if (action.type.startsWith('CHAT_')) {
+			return {
+				...state,
+				chat: chatReducer(state.chat, action),
+			};
+		}
+
 		switch (action.type) {
 
 		case 'NAV_BACK':

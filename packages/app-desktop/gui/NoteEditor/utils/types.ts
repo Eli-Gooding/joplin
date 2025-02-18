@@ -4,6 +4,7 @@ import { PluginHtmlContents, PluginStates } from '@joplin/lib/services/plugins/r
 import { MarkupLanguage } from '@joplin/renderer';
 import { RenderResult, RenderResultPluginAsset } from '@joplin/renderer/types';
 import { Dispatch } from 'redux';
+import type { ChatState } from '../../ChatPanel/chat.reducer';
 import { ProcessResultsRow } from '@joplin/lib/services/search/SearchEngine';
 import { DropHandler } from './useDropHandler';
 import { SearchMarkers } from './useSearchMarkers';
@@ -25,6 +26,7 @@ export interface ToolbarButtonInfos {
 }
 
 export interface NoteEditorProps {
+	chat: ChatState;
 	noteId: string;
 	themeId: number;
 	dispatch: Dispatch;

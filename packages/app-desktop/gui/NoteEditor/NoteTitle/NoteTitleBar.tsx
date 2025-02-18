@@ -6,6 +6,7 @@ import NoteToolbar from '../../NoteToolbar/NoteToolbar';
 import { buildStyle } from '@joplin/lib/theme';
 import time from '@joplin/lib/time';
 import { WindowIdContext } from '../../NewWindowOrIFrame';
+import ChatToggleButton from '../../ChatPanel/ChatToggleButton';
 
 interface Props {
 	themeId: number;
@@ -106,12 +107,17 @@ export default function NoteTitleBar(props: Props) {
 	const windowId = useContext(WindowIdContext);
 
 	function renderNoteToolbar() {
-		return <NoteToolbar
-			themeId={props.themeId}
-			style={styles.toolbarStyle}
-			disabled={props.disabled}
-			windowId={windowId}
-		/>;
+		return (
+			<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+				<NoteToolbar
+					themeId={props.themeId}
+					style={styles.toolbarStyle}
+					disabled={props.disabled}
+					windowId={windowId}
+				/>
+				<ChatToggleButton />
+			</div>
+		);
 	}
 
 	return (

@@ -40,6 +40,7 @@ import BaseItem from '@joplin/lib/models/BaseItem';
 import { ErrorCode } from '@joplin/lib/errors';
 import ItemChange from '@joplin/lib/models/ItemChange';
 import PlainEditor from './NoteBody/PlainEditor/PlainEditor';
+import ChatPanel from '../ChatPanel/ChatPanel';
 import CodeMirror6 from './NoteBody/CodeMirror/v6/CodeMirror';
 import CodeMirror5 from './NoteBody/CodeMirror/v5/CodeMirror';
 import { openItemById } from './utils/contextMenu';
@@ -152,6 +153,8 @@ function NoteEditorContent(props: NoteEditorProps) {
 	// const waitingToSaveNote = props.noteId && formNote.id !== props.noteId && props.editorNoteStatuses[props.noteId] === 'saving';
 
 	const styles = styles_(props);
+
+	const chatPanelWidth = 300; // Fixed width for now
 
 	const whiteBackgroundNoteRendering = formNote.markup_language === MarkupLanguage.Html;
 
@@ -633,7 +636,8 @@ function NoteEditorContent(props: NoteEditorProps) {
 
 	return (
 		<div style={styles.root} onDragOver={onDragOver} onDrop={onDrop} ref={containerRef}>
-			<div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+			<div style={{ display: 'flex', height: '100%' }}>
+				<div style={{ display: 'flex', flexDirection: 'column', height: '100%', flex: 1, minWidth: 0 }}>
 				{renderResourceWatchingNotification()}
 				{renderResourceInSearchResultsNotification()}
 				<NoteTitleBar
@@ -660,6 +664,22 @@ function NoteEditorContent(props: NoteEditorProps) {
 					selectedNoteTags={props.selectedNoteTags}
 				/>
 				<WarningBanner bodyEditor={props.bodyEditor}/>
+				</div>
+				{props.chat.isOpen && (
+					<div style={{
+						width: chatPanelWidth,
+						height: '100%',
+						borderLeft: `1px solid ${theme.dividerColor}`,
+						backgroundColor: theme.backgroundColor2
+					}}>
+						<ChatPanel 
+							isOpen={props.chat.isOpen}
+							messages={props.chat.messages}
+							isLoading={props.chat.isLoading}
+							currentNoteContent={formNote.body}
+						/>
+					</div>
+				)}
 			</div>
 		</div>
 	);
@@ -673,6 +693,7 @@ const mapStateToProps = (state: AppState, ownProps: ConnectProps) => {
 	const whenClauseContext = stateToWhenClauseContext(state, { windowId: ownProps.windowId });
 	const windowState = stateUtils.windowStateById(state, ownProps.windowId);
 	const noteId = stateUtils.selectedNoteId(windowState);
+	const chat = state.chat;
 
 	let bodyEditor = windowState.editorCodeView ? 'CodeMirror6' : 'TinyMCE';
 	if (state.settings.isSafeMode) {
@@ -684,6 +705,7 @@ const mapStateToProps = (state: AppState, ownProps: ConnectProps) => {
 	return {
 		noteId,
 		bodyEditor,
+		chat,
 		isProvisional: state.provisionalNoteIds.includes(noteId),
 		notes: windowState.notes,
 		selectedNoteIds: windowState.selectedNoteIds,
