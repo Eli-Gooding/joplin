@@ -3,8 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ContextExtractor = void 0;
 const text_splitter_1 = require("langchain/text_splitter");
 const config_1 = require("./config");
-const langsmith_1 = require("langsmith");
-const prompts_1 = require("langchain/prompts");
+const tracer_1 = require("./tracer");
 class ContextExtractor {
     constructor() {
         this.splitter = new text_splitter_1.RecursiveCharacterTextSplitter({
@@ -12,10 +11,7 @@ class ContextExtractor {
             chunkOverlap: config_1.contextConfig.chunkOverlap,
         });
         if (config_1.tracingConfig.enabled) {
-            this.tracer = new langsmith_1.RunTracer({
-                projectName: config_1.tracingConfig.projectName,
-                client: config_1.tracingConfig.client,
-            });
+            this.tracer = new tracer_1.ConsoleTracer();
         }
     }
     /**
@@ -25,22 +21,18 @@ class ContextExtractor {
      * @returns Array of extracted context chunks
      */
     async extractContext(content, query) {
-        var _a;
-        const run = (_a = this.tracer) === null || _a === void 0 ? void 0 : _a.createRun({
-            name: 'context_extraction',
-            extra: { content_length: content.length, query },
-        });
+        if (this.tracer) {
+            await this.tracer.handleChainStart({
+                lc: 1,
+                type: 'not_implemented',
+                id: ['joplin', 'context_extraction']
+            }, { content_length: content.length, query }, Date.now().toString());
+        }
         try {
             // Split the content into chunks
             const docs = await this.splitter.createDocuments([content]);
-            // Create a prompt for relevance scoring
-            const relevancePrompt = prompts_1.PromptTemplate.fromTemplate('Rate the relevance of the following text chunk to the query on a scale of 0 to 1:\n\nQuery: {query}\n\nText chunk: {chunk}\n\nRelevance score:');
             // Score and filter chunks
             const scoredChunks = await Promise.all(docs.map(async (doc) => {
-                const promptResult = await relevancePrompt.format({
-                    query,
-                    chunk: doc.pageContent,
-                });
                 // For now, simulate scoring - we'll implement real scoring later
                 const score = Math.random(); // TODO: Replace with actual relevance scoring
                 return {
@@ -64,11 +56,18 @@ class ContextExtractor {
                     },
                 });
             });
-            await (run === null || run === void 0 ? void 0 : run.end());
+            if (this.tracer) {
+                await this.tracer.handleChainEnd({
+                    num_chunks: topChunks.length
+                }, Date.now().toString());
+            }
             return topChunks;
         }
         catch (error) {
             console.error('Error extracting context:', error);
+            if (this.tracer) {
+                await this.tracer.handleChainError(error, Date.now().toString());
+            }
             throw error;
         }
     }

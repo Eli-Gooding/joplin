@@ -2,18 +2,15 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LangChainService = void 0;
 const contextExtractor_1 = require("./contextExtractor");
-const openai_1 = require("langchain/chat_models/openai");
-const schema_1 = require("langchain/schema");
+const openai_1 = require("@langchain/openai");
+const messages_1 = require("@langchain/core/messages");
 const config_1 = require("./config");
-const langsmith_1 = require("langsmith");
+const tracer_1 = require("./tracer");
 class LangChainService {
     constructor() {
         this.contextExtractor = new contextExtractor_1.ContextExtractor();
         if (config_1.tracingConfig.enabled) {
-            this.tracer = new langsmith_1.RunTracer({
-                projectName: config_1.tracingConfig.projectName,
-                client: config_1.tracingConfig.client,
-            });
+            this.tracer = new tracer_1.ConsoleTracer();
         }
     }
     /**
@@ -23,11 +20,13 @@ class LangChainService {
      * @returns The processed response
      */
     async processMessage(message, noteContent) {
-        var _a;
-        const run = (_a = this.tracer) === null || _a === void 0 ? void 0 : _a.createRun({
-            name: 'process_message',
-            extra: { message_length: message.length },
-        });
+        if (this.tracer) {
+            await this.tracer.handleChainStart({
+                lc: 1,
+                type: 'not_implemented',
+                id: ['joplin', 'chat', 'process_message']
+            }, { message_length: message.length }, Date.now().toString());
+        }
         try {
             // Extract relevant context from the note
             const contexts = await this.contextExtractor.extractContext(noteContent, message);
@@ -35,31 +34,36 @@ class LangChainService {
             const contextText = contexts
                 .map(ctx => ctx.content)
                 .join('\n\n');
-            const systemMessage = new schema_1.SystemMessage(`You are a helpful AI assistant helping users interact with their notes. 
+            const systemMessage = new messages_1.SystemMessage(`You are a helpful AI assistant helping users interact with their notes. 
                 Use the following context from the current note to inform your responses:
 
                 ${contextText}
 
                 Always be concise and relevant to the user's query.`);
             // Create human message
-            const humanMessage = new schema_1.HumanMessage(message);
+            const humanMessage = new messages_1.HumanMessage(message);
             // Initialize LLM with tracing
             this.llm = new openai_1.ChatOpenAI({
                 modelName: config_1.llmConfig.model,
                 temperature: config_1.llmConfig.temperature,
                 maxTokens: config_1.llmConfig.maxTokens,
-                callbacks: config_1.tracingConfig.enabled ? [this.tracer] : undefined,
+                callbacks: config_1.tracingConfig.enabled && this.tracer ? [this.tracer] : undefined,
             });
             // Get response from LLM
             const response = await this.llm.call([systemMessage, humanMessage]);
-            await (run === null || run === void 0 ? void 0 : run.end());
+            if (this.tracer) {
+                await this.tracer.handleChainEnd({ output: response.content }, Date.now().toString());
+            }
             return {
-                response: response.content,
+                response: typeof response.content === 'string' ? response.content : JSON.stringify(response.content),
                 contexts,
             };
         }
         catch (error) {
             console.error('Error processing message:', error);
+            if (this.tracer) {
+                await this.tracer.handleChainError(error, Date.now().toString());
+            }
             throw error;
         }
     }

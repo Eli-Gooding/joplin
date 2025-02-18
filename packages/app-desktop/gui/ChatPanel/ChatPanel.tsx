@@ -14,11 +14,13 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     isLoading,
     themeId,
     dispatch,
+    currentNoteContent,
 }) => {
     const theme = themeStyle(themeId);
 
     const handleSendMessage = async (content: string) => {
         const messageId = Date.now().toString();
+        const LangChainService = (await import('../../services/langchain/langchainService')).LangChainService;
         const langchainService = new LangChainService();
         
         // Add user message

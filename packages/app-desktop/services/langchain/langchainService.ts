@@ -1,22 +1,19 @@
 import { ContextExtractor, ExtractedContext } from './contextExtractor';
-import { ChatOpenAI } from 'langchain/chat_models/openai';
-import { HumanMessage, SystemMessage } from 'langchain/schema';
+import { ChatOpenAI } from '@langchain/openai';
+import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { llmConfig, tracingConfig } from './config';
-import { RunTracer } from 'langsmith';
+import { ConsoleTracer } from './tracer';
 
 export class LangChainService {
     private contextExtractor: ContextExtractor;
-    private tracer?: RunTracer;
+    private tracer?: ConsoleTracer;
     private llm: ChatOpenAI;
 
     constructor() {
         this.contextExtractor = new ContextExtractor();
 
         if (tracingConfig.enabled) {
-            this.tracer = new RunTracer({
-                projectName: tracingConfig.projectName,
-                client: tracingConfig.client,
-            });
+            this.tracer = new ConsoleTracer();
         }
     }
 
@@ -30,10 +27,17 @@ export class LangChainService {
         response: string;
         contexts: ExtractedContext[];
     }> {
-        const run = this.tracer?.createRun({
-            name: 'process_message',
-            extra: { message_length: message.length },
-        });
+        if (this.tracer) {
+            await this.tracer.handleChainStart(
+                {
+                    lc: 1,
+                    type: 'not_implemented',
+                    id: ['joplin', 'chat', 'process_message']
+                },
+                { message_length: message.length },
+                Date.now().toString()
+            );
+        }
 
         try {
             // Extract relevant context from the note
@@ -61,20 +65,28 @@ export class LangChainService {
                 modelName: llmConfig.model,
                 temperature: llmConfig.temperature,
                 maxTokens: llmConfig.maxTokens,
-                callbacks: tracingConfig.enabled ? [this.tracer] : undefined,
+                callbacks: tracingConfig.enabled && this.tracer ? [this.tracer] : undefined,
             });
 
             // Get response from LLM
             const response = await this.llm.call([systemMessage, humanMessage]);
 
-            await run?.end();
+            if (this.tracer) {
+                await this.tracer.handleChainEnd(
+                    { output: response.content },
+                    Date.now().toString()
+                );
+            }
 
             return {
-                response: response.content,
+                response: typeof response.content === 'string' ? response.content : JSON.stringify(response.content),
                 contexts,
             };
         } catch (error) {
             console.error('Error processing message:', error);
+            if (this.tracer) {
+                await this.tracer.handleChainError(error, Date.now().toString());
+            }
             throw error;
         }
     }
