@@ -19,6 +19,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
     const handleSendMessage = async (content: string) => {
         const messageId = Date.now().toString();
+        const langchainService = new LangChainService();
         
         // Add user message
         dispatch(addMessage({
@@ -32,19 +33,28 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         dispatch(setLoading(true));
 
         try {
-            // TODO: Implement actual agent communication here
-            // For now, just echo the message back
-            setTimeout(() => {
-                dispatch(addMessage({
-                    id: Date.now().toString(),
-                    content: `Echo: ${content}`,
-                    sender: 'agent',
-                    timestamp: Date.now(),
-                }));
-                dispatch(setLoading(false));
-            }, 1000);
+            // Process message with LangChain service
+            const { response, contexts } = await langchainService.processMessage(content, currentNoteContent || '');
+
+            // Add agent response
+            dispatch(addMessage({
+                id: Date.now().toString(),
+                content: response,
+                sender: 'agent',
+                timestamp: Date.now(),
+                metadata: { contexts },
+            }));
         } catch (error) {
-            console.error('Error sending message:', error);
+            console.error('Error processing message:', error);
+            // Add error message
+            dispatch(addMessage({
+                id: Date.now().toString(),
+                content: 'Sorry, there was an error processing your message.',
+                sender: 'agent',
+                timestamp: Date.now(),
+                metadata: { error: error.message },
+            }));
+        } finally {
             dispatch(setLoading(false));
         }
     };

@@ -1,10 +1,16 @@
 import { AnyAction } from 'redux';
 
+import { ExtractedContext } from '../../services/langchain/contextExtractor';
+
 export interface ChatMessage {
     id: string;
     content: string;
     sender: 'user' | 'agent';
     timestamp: number;
+    metadata?: {
+        contexts?: ExtractedContext[];
+        error?: string;
+    };
 }
 
 export interface ChatState {

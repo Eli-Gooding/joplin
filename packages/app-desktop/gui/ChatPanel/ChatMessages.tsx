@@ -18,13 +18,41 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({ messages, themeId }) => {
     return (
         <StyledMessagesContainer theme={theme}>
             {messages.map((message) => (
-                <StyledMessage
-                    key={message.id}
-                    theme={theme}
-                    isAgent={message.sender === 'agent'}
-                >
-                    {message.content}
-                </StyledMessage>
+                <div key={message.id}>
+                    <StyledMessage
+                        theme={theme}
+                        isAgent={message.sender === 'agent'}
+                    >
+                        {message.content}
+                    </StyledMessage>
+                    {message.metadata?.contexts && (
+                        <div style={{ marginTop: '8px', fontSize: '0.9em', color: theme.colorFaded }}>
+                            <div>Extracted Context:</div>
+                            {message.metadata.contexts.map((context, index) => (
+                                <div key={index} style={{ 
+                                    marginTop: '4px', 
+                                    padding: '4px', 
+                                    backgroundColor: theme.backgroundColor3,
+                                    borderRadius: '4px',
+                                    fontSize: '0.9em'
+                                }}>
+                                    {context.content.substring(0, 100)}...
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    {message.metadata?.error && (
+                        <div style={{ 
+                            marginTop: '8px', 
+                            color: theme.colorError,
+                            padding: '4px',
+                            backgroundColor: `${theme.colorError}20`,
+                            borderRadius: '4px'
+                        }}>
+                            Error: {message.metadata.error}
+                        </div>
+                    )}
+                </div>
             ))}
             <div ref={messagesEndRef} />
         </StyledMessagesContainer>

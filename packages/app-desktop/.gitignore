@@ -25,3 +25,8 @@ build/7zip/7za
 build/7zip/7za.exe
 sentry.properties
 downloads/
+
+# Environment files
+.env
+.env.local
+.env.*.local
