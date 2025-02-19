@@ -60,8 +60,32 @@ export class ContextExtractor {
             // Score and filter chunks
             const scoredChunks = await Promise.all(docs.map(async (doc: Document) => {
 
-                // For now, simulate scoring - we'll implement real scoring later
-                const score = Math.random(); // TODO: Replace with actual relevance scoring
+                // Score based on query term presence and position
+                const queryTerms = query.toLowerCase().split(/\s+/);
+                const content = doc.pageContent.toLowerCase();
+                
+                // Base score on term frequency
+                let score = queryTerms.reduce((sum, term) => {
+                    const count = (content.match(new RegExp(term, 'g')) || []).length;
+                    return sum + (count > 0 ? 1 : 0);
+                }, 0) / queryTerms.length;
+
+                // Boost score if all terms are present
+                if (queryTerms.every(term => content.includes(term))) {
+                    score *= 1.5;
+                }
+
+                // Boost score if terms appear close together
+                const firstTerm = queryTerms[0];
+                const lastTerm = queryTerms[queryTerms.length - 1];
+                const firstIndex = content.indexOf(firstTerm);
+                const lastIndex = content.indexOf(lastTerm);
+                if (firstIndex !== -1 && lastIndex !== -1) {
+                    const distance = Math.abs(lastIndex - firstIndex);
+                    if (distance < 100) { // Terms are close
+                        score *= 1.2;
+                    }
+                }
 
                 return {
                     doc,

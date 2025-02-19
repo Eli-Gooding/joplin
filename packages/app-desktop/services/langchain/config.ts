@@ -75,8 +75,8 @@ export const llmConfig = {
 
 // Context Extraction Configuration
 export const contextConfig = {
-    chunkSize: 1000,                       // Size of each context chunk
-    chunkOverlap: 200,                     // Overlap between chunks
-    maxChunks: 5,                          // Maximum number of context chunks to include
-    minRelevanceScore: 0.7,                // Minimum relevance score for context inclusion
+    chunkSize: 1500,                       // Size of each context chunk
+    chunkOverlap: 300,                     // Overlap between chunks to maintain context
+    maxChunks: 3,                          // Maximum number of context chunks to include
+    minRelevanceScore: 0.3,                // Lower threshold to include more relevant chunks
 };
