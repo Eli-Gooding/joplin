@@ -548,6 +548,7 @@ packages/app-desktop/services/commands/stateToWhenClauseContext.js
 packages/app-desktop/services/commands/types.js
 packages/app-desktop/services/langchain/config.js
 packages/app-desktop/services/langchain/contextExtractor.js
+packages/app-desktop/services/langchain/diffGenerator.js
 packages/app-desktop/services/langchain/env.js
 packages/app-desktop/services/langchain/langchainService.js
 packages/app-desktop/services/langchain/settings.js

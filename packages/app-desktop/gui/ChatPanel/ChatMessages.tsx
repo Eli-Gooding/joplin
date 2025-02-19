@@ -1,9 +1,10 @@
 import * as React from 'react';
-import { StyledMessagesContainer, StyledMessage } from './styles';
+import { StyledMessagesContainer, StyledMessage, StyledButton } from './styles';
 import { ChatMessagesProps } from './types';
 import { themeStyle } from '@joplin/lib/theme';
 
-const ChatMessages: React.FC<ChatMessagesProps> = ({ messages, themeId }) => {
+
+const ChatMessages: React.FC<ChatMessagesProps> = ({ messages, themeId, onAcceptEdit, onRejectEdit }) => {
     const theme = themeStyle(themeId);
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
@@ -50,7 +51,82 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({ messages, themeId }) => {
                             backgroundColor: `${theme.colorError}20`,
                             borderRadius: '4px'
                         }}>
-                            Error: {message.metadata.error}
+                            {message.metadata.error}
+                        </div>
+                    )}
+                    {message.metadata?.suggestedEdit && (
+                        <div style={{
+                            marginTop: '12px',
+                            padding: '8px',
+                            backgroundColor: theme.backgroundColor3,
+                            borderRadius: '4px',
+                        }}>
+                            <div style={{ marginBottom: '8px', fontWeight: 'bold' }}>
+                                Suggested Changes:
+                            </div>
+                            <pre style={{
+                                margin: '0',
+                                padding: '8px',
+                                backgroundColor: theme.backgroundColor2,
+                                borderRadius: '4px',
+                                overflowX: 'auto',
+                                fontSize: '0.9em',
+                            }}>
+                                {message.content.split('\n').map((line, i) => (
+                                    <div key={i} style={{
+                                        backgroundColor: line.startsWith('+ ') ? `${theme.color4}20` :
+                                            line.startsWith('- ') ? `${theme.colorError}20` : 'transparent',
+                                        color: line.startsWith('+ ') ? theme.color4 :
+                                            line.startsWith('- ') ? theme.colorError : theme.color,
+                                    }}>
+                                        {line}
+                                    </div>
+                                ))}
+                            </pre>
+                            {message.metadata.editStatus === 'pending' && (
+                                <div style={{
+                                    display: 'flex',
+                                    gap: '8px',
+                                    marginTop: '8px',
+                                }}>
+                                    <StyledButton
+                                        theme={theme}
+                                        onClick={() => onAcceptEdit(message.id)}
+                                        style={{
+                                            backgroundColor: theme.backgroundColor4,
+                                            color: theme.color4,
+                                        }}
+                                    >
+                                        Accept Changes
+                                    </StyledButton>
+                                    <StyledButton
+                                        theme={theme}
+                                        onClick={() => onRejectEdit(message.id)}
+                                        style={{
+                                            backgroundColor: `${theme.colorError}20`,
+                                            color: theme.colorError,
+                                        }}
+                                    >
+                                        Reject Changes
+                                    </StyledButton>
+                                </div>
+                            )}
+                            {message.metadata.editStatus === 'accepted' && (
+                                <div style={{
+                                    marginTop: '8px',
+                                    color: theme.color4,
+                                }}>
+                                    ✓ Changes accepted
+                                </div>
+                            )}
+                            {message.metadata.editStatus === 'rejected' && (
+                                <div style={{
+                                    marginTop: '8px',
+                                    color: theme.colorError,
+                                }}>
+                                    ✕ Changes rejected
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -61,3 +137,4 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({ messages, themeId }) => {
 };
 
 export default ChatMessages;
+

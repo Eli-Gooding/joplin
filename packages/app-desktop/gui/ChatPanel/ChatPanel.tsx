@@ -3,10 +3,11 @@ import { connect } from 'react-redux';
 import { StyledRoot } from './styles';
 import { ChatPanelProps } from './types';
 import { themeStyle } from '@joplin/lib/theme';
+import Note from '@joplin/lib/models/Note';
 import { AppState } from '../../app.reducer';
 import ChatMessages from './ChatMessages';
 import ChatInput from './ChatInput';
-import { addMessage, setLoading } from './chat.reducer';
+import { addMessage, setLoading, updateEditStatus } from './chat.reducer';
 
 const ChatPanel: React.FC<ChatPanelProps> = ({
     isOpen,
@@ -15,6 +16,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     themeId,
     dispatch,
     currentNoteContent,
+    currentNoteId,
 }) => {
     const theme = themeStyle(themeId);
 
@@ -40,7 +42,11 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             const langchainService = new LangChainService();
             
             console.log('[ChatPanel] Processing message with LangChain service...');
-            const { response, contexts } = await langchainService.processMessage(content, currentNoteContent || '');
+            const { response, contexts, suggestedEdit } = await langchainService.processMessage(
+                content,
+                currentNoteContent || '',
+                currentNoteId
+            );
             console.log('[ChatPanel] Received response:', { responseLength: response.length, numContexts: contexts.length });
 
             // Add agent response
@@ -49,7 +55,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                 content: response,
                 sender: 'agent',
                 timestamp: Date.now(),
-                metadata: { contexts },
+                metadata: {
+                    contexts,
+                    ...(suggestedEdit ? { suggestedEdit, editStatus: 'pending' } : {}),
+                },
             }));
         } catch (error: any) {
             console.error('[ChatPanel] Error processing message:', error);
@@ -79,6 +88,38 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         }
     };
 
+    const handleAcceptEdit = async (messageId: string) => {
+        const message = messages.find(m => m.id === messageId);
+        if (!message?.metadata?.suggestedEdit) return;
+
+        try {
+            const { suggestedEdit } = message.metadata;
+            console.log('[ChatPanel] Accepting edit:', { messageId, suggestedEdit });
+
+            // Update the note content
+            await Note.save({
+                id: suggestedEdit.noteId,
+                body: suggestedEdit.newContent,
+            });
+            
+            // Update the edit status
+            dispatch(updateEditStatus(messageId, 'accepted'));
+        } catch (error) {
+            console.error('[ChatPanel] Error accepting edit:', error);
+            // Add error message
+            dispatch(addMessage({
+                id: Date.now().toString(),
+                content: 'Failed to apply changes: ' + (error.message || 'Unknown error'),
+                sender: 'error',
+                timestamp: Date.now(),
+            }));
+        }
+    };
+
+    const handleRejectEdit = (messageId: string) => {
+        dispatch(updateEditStatus(messageId, 'rejected'));
+    };
+
     if (!isOpen) return null;
 
     return (
@@ -86,6 +127,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             <ChatMessages
                 messages={messages}
                 themeId={themeId}
+                onAcceptEdit={handleAcceptEdit}
+                onRejectEdit={handleRejectEdit}
             />
             <ChatInput
                 onSendMessage={handleSendMessage}
@@ -98,8 +141,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
 const mapStateToProps = (state: AppState) => ({
     themeId: state.settings.theme,
-    // Add other necessary state mappings here
-    // currentNoteContent: state.notes.selectedNoteContent, // TODO: Add this mapping
+    currentNoteId: state.selectedNoteIds[0], // Get the first selected note ID
 });
 
 export default connect(mapStateToProps)(ChatPanel);

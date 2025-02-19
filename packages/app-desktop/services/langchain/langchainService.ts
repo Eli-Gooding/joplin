@@ -4,22 +4,49 @@ import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { llmConfig, tracingConfig } from './config';
 import { ConsoleCallbackHandler } from '@langchain/core/tracers/console';
 import { LangChainTracer } from 'langchain/callbacks';
+import { DiffGenerator, DiffOperation } from './diffGenerator';
 
 export class LangChainService {
     // Core service state
     private initialized = false;
-    private contextExtractor: ContextExtractor;
+    private contextExtractor: ContextExtractor = new ContextExtractor();
+    private diffGenerator: DiffGenerator = new DiffGenerator();
     private llm: ChatOpenAI | null = null;
 
     // Handler management
     private consoleTracer: ConsoleCallbackHandler | null = null;
 
+    /**
+     * Format a diff operation for preview in the chat
+     */
+    private formatDiffPreview(diff: DiffOperation): string {
+        let preview = '';
+        
+        for (const range of diff.ranges) {
+            if (range.originalText && range.newText) {
+                preview += '```diff\n';
+                preview += '- ' + range.originalText.split('\n').join('\n- ');
+                preview += '+ ' + range.newText.split('\n').join('\n+ ');
+                preview += '```\n';
+            } else if (range.originalText) {
+                preview += '```diff\n';
+                preview += '- ' + range.originalText.split('\n').join('\n- ');
+                preview += '```\n';
+            } else if (range.newText) {
+                preview += '```diff\n';
+                preview += '+ ' + range.newText.split('\n').join('\n+ ');
+                preview += '```\n';
+            }
+        }
+        
+        return preview;
+    }
+
     private async initialize() {
         if (this.initialized) return;
 
         console.log('[LangChainService] Initializing service...');
-        console.log('[LangChainService] Creating ContextExtractor...');
-        this.contextExtractor = new ContextExtractor();
+        console.log('[LangChainService] Service components already initialized...');
 
         // Always use console tracing for debugging
         this.consoleTracer = new ConsoleCallbackHandler();
@@ -61,9 +88,10 @@ export class LangChainService {
      * @param noteContent The current note's content
      * @returns The processed response
      */
-    async processMessage(message: string, noteContent: string): Promise<{
+    async processMessage(message: string, noteContent: string, noteId?: string): Promise<{
         response: string;
         contexts: ExtractedContext[];
+        suggestedEdit?: DiffOperation;
     }> {
         if (!this.initialized) {
             await this.initialize();
@@ -102,7 +130,7 @@ export class LangChainService {
                 systemPrompt += '\nUse the following context from the current note to inform your responses:\n\n' + contextText;
             }
             
-            systemPrompt += '\n\nAlways be concise and relevant to the user\'s query.';
+            systemPrompt += '\n\nYou can suggest edits to the note by starting your response with "[EDIT]" followed by the complete new content for the note. Otherwise, be concise and relevant to the user\'s query.';
             console.log('[LangChainService] System prompt length:', systemPrompt.length);
             
             const systemMessage = new SystemMessage(systemPrompt);
@@ -129,8 +157,34 @@ export class LangChainService {
 
             // Chain end is handled automatically
 
+            const responseContent = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
+            
+            // Check if this is an edit suggestion
+            let suggestedEdit: DiffOperation | undefined;
+            if (responseContent.startsWith('[EDIT]') && noteId) {
+                console.log('[LangChainService] Detected edit suggestion');
+                const newContent = responseContent.substring('[EDIT]'.length).trim();
+                console.log('[LangChainService] Creating diff operation:', {
+                    noteId,
+                    originalLength: noteContent.length,
+                    newLength: newContent.length
+                });
+                suggestedEdit = this.diffGenerator.createDiffOperation(noteId, noteContent, newContent);
+                console.log('[LangChainService] Generated diff:', {
+                    numRanges: suggestedEdit.ranges.length,
+                    ranges: suggestedEdit.ranges
+                });
+                
+                // Remove the [EDIT] prefix from the response
+                return {
+                    response: `I suggest the following changes to your note:\n${this.formatDiffPreview(suggestedEdit)}`,
+                    contexts,
+                    suggestedEdit,
+                };
+            }
+
             return {
-                response: typeof response.content === 'string' ? response.content : JSON.stringify(response.content),
+                response: responseContent,
                 contexts,
             };
         } catch (error) {

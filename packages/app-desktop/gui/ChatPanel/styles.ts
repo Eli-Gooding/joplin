@@ -48,6 +48,23 @@ export const StyledInputContainer = styled.div<{ theme: ThemeAppearance }>`
     border-top: 1px solid ${props => props.theme.dividerColor};
 `;
 
+export const StyledButton = styled.button<{ theme: ThemeAppearance }>`
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: opacity 0.2s;
+
+    &:hover {
+        opacity: 0.8;
+    }
+
+    &:active {
+        opacity: 0.6;
+    }
+`;
+
 export const StyledInput = styled.textarea<{ theme: ThemeAppearance }>`
     width: 100%;
     min-height: 40px;

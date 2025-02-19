@@ -7,7 +7,8 @@ export interface ChatPanelProps {
     isLoading: boolean;
     themeId: number;
     dispatch: Dispatch;
-    currentNoteContent?: string;
+    currentNoteContent: string;
+    currentNoteId?: string;
 }
 
 export interface ChatInputProps {
@@ -19,4 +20,6 @@ export interface ChatInputProps {
 export interface ChatMessagesProps {
     messages: ChatMessage[];
     themeId: number;
+    onAcceptEdit: (messageId: string) => void;
+    onRejectEdit: (messageId: string) => void;
 }
