@@ -11,13 +11,13 @@ function getEnvVariables() {
         LANGCHAIN_MODEL: Setting_1.default.value('langchainModel'),
         LANGCHAIN_TEMPERATURE: Setting_1.default.value('langchainTemperature'),
         LANGCHAIN_MAX_TOKENS: Setting_1.default.value('langchainMaxTokens'),
+        LANGCHAIN_TRACING_V2: Setting_1.default.value('langchainApiKey') ? 'true' : undefined, // Enable tracing only if we have a LangSmith API key
         OPENAI_API_KEY: Setting_1.default.value('openaiApiKey'),
     };
     console.log('[Config] Current settings:', Object.assign(Object.assign({}, settings), { OPENAI_API_KEY: settings.OPENAI_API_KEY ? '***' : undefined, LANGCHAIN_API_KEY: settings.LANGCHAIN_API_KEY ? '***' : undefined }));
     return settings;
 }
 exports.getEnvVariables = getEnvVariables;
-;
 function validateEnvVariables(env) {
     var _a;
     // First check OpenAI API key as it's critical

@@ -8321,7 +8321,7 @@ __metadata:
     js-sha512: 0.9.0
     keytar: 7.9.0
     langchain: ^0.3.18
-    langsmith: ^0.3.9
+    langsmith: ^0.3.10
     mark.js: 8.11.1
     md5: 2.3.0
     moment: 2.30.1
@@ -32175,7 +32175,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"langsmith@npm:>=0.2.8 <0.4.0, langsmith@npm:^0.3.9":
+"langsmith@npm:>=0.2.8 <0.4.0":
   version: 0.3.9
   resolution: "langsmith@npm:0.3.9"
   dependencies:
@@ -32192,6 +32192,26 @@ __metadata:
     openai:
       optional: true
   checksum: 0d23fbe8ce1fb83728aaef2f50c3b9faa18a9b605e5d5df715b606cea01d5f7d674eb0174df58cf9ec832af99354ca3d01d4383599ad927780cdd24c94541ff5
+  languageName: node
+  linkType: hard
+
+"langsmith@npm:^0.3.10":
+  version: 0.3.10
+  resolution: "langsmith@npm:0.3.10"
+  dependencies:
+    "@types/uuid": ^10.0.0
+    chalk: ^4.1.2
+    console-table-printer: ^2.12.1
+    p-queue: ^6.6.2
+    p-retry: 4
+    semver: ^7.6.3
+    uuid: ^10.0.0
+  peerDependencies:
+    openai: "*"
+  peerDependenciesMeta:
+    openai:
+      optional: true
+  checksum: ea51ca52b615c9d5caac56a6d4ed53389eb4a1f36129853581c3961207fdd9751f34d2bdb3a278ac7d73d9f51686c17d15d85625ccce6b8303f2e95d364f7e09
   languageName: node
   linkType: hard
 
@@ -42294,6 +42314,7 @@ __metadata:
   dependencies:
     "@crowdin/cli": 3
     "@joplin/utils": ~2.12
+    "@langchain/core": ^0.3.40
     "@seiyab/eslint-plugin-react-hooks": 4.5.1-beta.0
     "@types/fs-extra": 11.0.4
     "@typescript-eslint/eslint-plugin": 6.21.0
@@ -42312,6 +42333,7 @@ __metadata:
     gulp: 4.0.2
     http-server: 14.1.1
     husky: 3.1.0
+    langsmith: ^0.3.10
     lerna: 3.22.1
     lint-staged: 15.2.8
     madge: 7.0.0

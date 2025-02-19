@@ -5,6 +5,7 @@ export interface LangChainEnvVariables {
     LANGCHAIN_MODEL?: string;
     LANGCHAIN_TEMPERATURE?: string;
     LANGCHAIN_MAX_TOKENS?: string;
+    LANGCHAIN_TRACING_V2?: string;
     OPENAI_API_KEY?: string;
 }
 
@@ -19,6 +20,7 @@ export function getEnvVariables(): LangChainEnvVariables {
         LANGCHAIN_MODEL: Setting.value('langchainModel'),
         LANGCHAIN_TEMPERATURE: Setting.value('langchainTemperature'),
         LANGCHAIN_MAX_TOKENS: Setting.value('langchainMaxTokens'),
+        LANGCHAIN_TRACING_V2: Setting.value('langchainApiKey') ? 'true' : undefined,  // Enable tracing only if we have a LangSmith API key
         OPENAI_API_KEY: Setting.value('openaiApiKey'),
     };
     
@@ -29,7 +31,6 @@ export function getEnvVariables(): LangChainEnvVariables {
     });
 
     return settings;
-    };
 }
 
 export function validateEnvVariables(env: LangChainEnvVariables): void {
