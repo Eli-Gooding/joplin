@@ -72,16 +72,30 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({ messages, themeId, onAccept
                                 overflowX: 'auto',
                                 fontSize: '0.9em',
                             }}>
-                                {message.content.split('\n').map((line, i) => (
-                                    <div key={i} style={{
-                                        backgroundColor: line.startsWith('+ ') ? `${theme.color4}20` :
-                                            line.startsWith('- ') ? `${theme.colorError}20` : 'transparent',
-                                        color: line.startsWith('+ ') ? theme.color4 :
-                                            line.startsWith('- ') ? theme.colorError : theme.color,
-                                    }}>
-                                        {line}
-                                    </div>
-                                ))}
+                                {message.content.split('\n').map((line, i) => {
+                                    // Skip the ```diff line
+                                    if (line === '```diff') return null;
+                                    
+                                    const isAddition = line.startsWith('+');
+                                    const isDeletion = line.startsWith('-');
+                                    
+                                    // Skip if it's just the closing ```
+                                    if (line === '```') return null;
+                                    
+                                    return (
+                                        <div key={i} style={{
+                                            backgroundColor: isAddition ? `${theme.colorCorrect}20` :
+                                                isDeletion ? `${theme.colorError}20` : 'transparent',
+                                            color: isAddition ? theme.colorCorrect :
+                                                isDeletion ? theme.colorError : theme.color,
+                                            fontFamily: 'monospace',
+                                            whiteSpace: 'pre',
+                                            padding: '2px 4px',
+                                        }}>
+                                            {line}
+                                        </div>
+                                    );
+                                }).filter(Boolean)}
                             </pre>
                             {message.metadata.editStatus === 'pending' && (
                                 <div style={{

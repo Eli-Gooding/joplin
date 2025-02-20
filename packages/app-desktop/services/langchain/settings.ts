@@ -11,13 +11,41 @@ export async function registerSettings() {
     });
 
     // Register each setting individually
-        await Setting.registerSetting('openaiApiKey', {
+        // Model Type Selection
+    await Setting.registerSetting('modelType', {
+        value: 'openai',
+        type: Setting.TYPE_STRING,
+        section: 'langchain',
+        public: true,
+        isEnum: true,
+        options: () => {
+            return {
+                'openai': 'OpenAI',
+                'llama': 'Local Llama',
+            };
+        },
+        label: () => 'Model Type',
+        description: (_appType: AppType) => 'Choose between OpenAI or a local Llama model',
+    });
+
+    // OpenAI Settings
+    await Setting.registerSetting('openaiApiKey', {
         value: '',
         type: Setting.TYPE_STRING,
         section: 'langchain',
         public: true,
         label: () => 'OpenAI API Key',
         description: (_appType: AppType) => 'Your OpenAI API key for chat functionality',
+    });
+
+    // Llama Settings
+    await Setting.registerSetting('llamaEndpoint', {
+        value: 'http://localhost:8000',
+        type: Setting.TYPE_STRING,
+        section: 'langchain',
+        public: true,
+        label: () => 'Llama Endpoint',
+        description: (_appType: AppType) => 'Local Llama model endpoint URL',
     });
     await Setting.registerSetting('langchainEndpoint', {
         value: 'https://api.smith.langchain.com',

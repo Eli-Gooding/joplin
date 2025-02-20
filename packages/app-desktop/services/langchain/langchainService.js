@@ -2,21 +2,23 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LangChainService = void 0;
 const contextExtractor_1 = require("./contextExtractor");
-const openai_1 = require("@langchain/openai");
 const messages_1 = require("@langchain/core/messages");
 const config_1 = require("./config");
-const console_1 = require("@langchain/core/tracers/console");
-const callbacks_1 = require("langchain/callbacks");
+const manager_1 = require("@langchain/core/callbacks/manager");
 const diffGenerator_1 = require("./diffGenerator");
+const openai_1 = require("./models/openai");
+const llama_1 = require("./models/llama");
+const env_1 = require("./env");
+const inMemoryStore_1 = require("./memory/inMemoryStore");
 class LangChainService {
     constructor() {
         // Core service state
         this.initialized = false;
         this.contextExtractor = new contextExtractor_1.ContextExtractor();
         this.diffGenerator = new diffGenerator_1.DiffGenerator();
-        this.llm = null;
-        // Handler management
-        this.consoleTracer = null;
+        this.model = null;
+        this.memoryStore = new inMemoryStore_1.InMemoryStore();
+        this.maxMemoryMessages = 10; // Keep last 10 messages by default
     }
     /**
      * Format a diff operation for preview in the chat
@@ -26,8 +28,17 @@ class LangChainService {
         for (const range of diff.ranges) {
             if (range.originalText && range.newText) {
                 preview += '```diff\n';
-                preview += '- ' + range.originalText.split('\n').join('\n- ');
-                preview += '+ ' + range.newText.split('\n').join('\n+ ');
+                // Split and format deletions, handling special case of '- +' lines
+                const deletions = range.originalText.split('\n').map(line => {
+                    if (line.startsWith('+ ')) {
+                        return '- +' + line.substring(2);
+                    }
+                    return '- ' + line;
+                }).join('\n');
+                preview += deletions;
+                preview += '\n';
+                // Split and format additions
+                preview += range.newText.split('\n').map(line => '+ ' + line).join('\n');
                 preview += '```\n';
             }
             else if (range.originalText) {
@@ -43,13 +54,32 @@ class LangChainService {
         }
         return preview;
     }
+    /**
+     * Get the chat memory for a note
+     */
+    async getMemory(noteId) {
+        const memory = await this.memoryStore.get(noteId);
+        return memory.messages.map(msg => ({
+            role: msg._getType(),
+            content: msg.content
+        }));
+    }
+    /**
+     * Clear chat memory for a specific note or all notes
+     */
+    async clearMemory(noteId) {
+        if (noteId) {
+            await this.memoryStore.clear(noteId);
+        }
+        else {
+            await this.memoryStore.clearAll();
+        }
+    }
     async initialize() {
         if (this.initialized)
             return;
         console.log('[LangChainService] Initializing service...');
         console.log('[LangChainService] Service components already initialized...');
-        // Always use console tracing for debugging
-        this.consoleTracer = new console_1.ConsoleCallbackHandler();
         // Initialize LangSmith tracing if configured
         if (config_1.tracingConfig.enabled && config_1.tracingConfig.client) {
             console.log('[LangChainService] LangSmith tracing enabled with project:', config_1.tracingConfig.projectName);
@@ -61,19 +91,24 @@ class LangChainService {
             hasApiKey: !!config_1.llmConfig.openAIApiKey,
             hasLangSmithTracer: config_1.tracingConfig.enabled
         });
-        // Initialize LLM with tracers
-        const callbacks = [this.consoleTracer];
-        if (config_1.tracingConfig.enabled && config_1.tracingConfig.client) {
-            // The client implements the necessary callback interfaces
-            callbacks.push(config_1.tracingConfig.client);
+        // Initialize model adapter based on settings
+        const env = (0, env_1.getEnvVariables)();
+        if (env.MODEL_TYPE === 'openai') {
+            if (!env.OPENAI_API_KEY) {
+                throw new Error('OpenAI API key is required when using OpenAI model');
+            }
+            this.model = new openai_1.OpenAIModelAdapter(env.OPENAI_API_KEY);
         }
-        this.llm = new openai_1.ChatOpenAI({
-            modelName: config_1.llmConfig.model,
-            temperature: config_1.llmConfig.temperature,
-            maxTokens: config_1.llmConfig.maxTokens,
-            openAIApiKey: config_1.llmConfig.openAIApiKey,
-            callbacks,
-        });
+        else if (env.MODEL_TYPE === 'llama') {
+            if (!env.LLAMA_ENDPOINT) {
+                throw new Error('Llama endpoint is required when using Llama model');
+            }
+            this.model = new llama_1.LlamaModelAdapter(env.LLAMA_ENDPOINT);
+        }
+        else {
+            throw new Error(`Unsupported model type: ${env.MODEL_TYPE}`);
+        }
+        await this.model.initialize();
         this.initialized = true;
     }
     /**
@@ -86,14 +121,22 @@ class LangChainService {
         if (!this.initialized) {
             await this.initialize();
         }
-        let tracer;
+        let callbacks;
         if (config_1.tracingConfig.enabled && config_1.tracingConfig.client) {
-            tracer = new callbacks_1.LangChainTracer({
-                projectName: config_1.tracingConfig.projectName,
-                client: config_1.tracingConfig.client,
-            });
+            const handler = {
+                handleLLMStart: async () => {
+                    console.log('[LangChainService] Starting LLM call...');
+                },
+                handleLLMEnd: async () => {
+                    console.log('[LangChainService] LLM call completed.');
+                },
+                handleLLMError: async (err) => {
+                    console.error('[LangChainService] LLM call error:', err);
+                }
+            };
+            callbacks = manager_1.CallbackManager.fromHandlers(handler);
         }
-        if (!this.llm) {
+        if (!this.model) {
             throw new Error('LangChainService not properly initialized');
         }
         // Chain tracing is now handled automatically by the callbacks
@@ -103,31 +146,111 @@ class LangChainService {
             const contexts = await this.contextExtractor.extractContext(noteContent, message);
             console.log('[LangChainService] Extracted contexts:', {
                 numContexts: contexts.length,
-                contextLengths: contexts.map(c => c.content.length)
+                contextLengths: contexts.map(c => c.content.length),
+                contexts: contexts.map(c => c.content.substring(0, 100) + '...') // First 100 chars of each context
             });
-            // Create system message with context
-            let systemPrompt = 'You are a helpful AI assistant helping users interact with their notes.';
+            // Get chat memory
+            const memory = await this.memoryStore.get(noteId || 'default');
+            console.log('[LangChainService] Retrieved memory:', {
+                messageCount: memory.messages.length,
+                messages: memory.messages.map(msg => ({
+                    role: msg._getType(),
+                    content: typeof msg.content === 'string' ?
+                        msg.content.substring(0, 100) + '...' :
+                        JSON.stringify(msg.content).substring(0, 100) + '...'
+                }))
+            });
+            // Create system message with smart context selection instructions
+            let systemPrompt = 'You are a helpful AI assistant helping users interact with their notes. ';
+            systemPrompt += 'You have access to both the current note content and the conversation history. ';
+            systemPrompt += 'For each user query, carefully analyze the intent and available information:\n';
+            systemPrompt += '1. For conversation references - Use conversation history when the user:\n';
+            systemPrompt += '   - Asks about previous interactions ("what did I/you say", "you mentioned", "earlier", "before", "last time")\n';
+            systemPrompt += '   - Refers to temporal aspects ("just now", "previously", "first", "last", "recent")\n';
+            systemPrompt += '   - Uses pronouns referring to conversation ("that", "it", "this", when referring to previous statements)\n';
+            systemPrompt += '2. For note content - Use note context when the user:\n';
+            systemPrompt += '   - Explicitly mentions the note ("in the note", "this content", "the text")\n';
+            systemPrompt += '   - Asks about specific content that appears in the note\n';
+            systemPrompt += '   - Requests operations on the note (summarize, edit, analyze)\n';
+            systemPrompt += '3. If the intent is unclear:\n';
+            systemPrompt += '   - Check both sources\n';
+            systemPrompt += '   - Prioritize the most relevant information\n';
+            systemPrompt += '   - Consider combining information from both sources if appropriate\n';
+            // Add note context if available
+            let hasRelevantContext = false;
             if (contexts.length > 0) {
                 const contextText = contexts
                     .map(ctx => ctx.content.trim())
                     .join('\n\n');
-                systemPrompt += '\nUse the following context from the current note to inform your responses:\n\n' + contextText;
+                systemPrompt += '\n\nCurrent note context:\n\n' + contextText;
+                hasRelevantContext = true;
+            }
+            else {
+                systemPrompt += '\n\nNote: No relevant context found in the current note.';
+            }
+            // Add memory context if available
+            if (memory.messages.length > 0) {
+                systemPrompt += '\n\nConversation history:\n';
+                memory.messages.forEach(msg => {
+                    // Use _getType() for now as it's the only way to get the message type
+                    const role = msg._getType() === 'human' ? 'User' : 'Assistant';
+                    systemPrompt += `\n${role}: ${msg.content}`;
+                });
+            }
+            else {
+                systemPrompt += '\n\nNote: No conversation history available.';
+            }
+            // Add final instructions based on available context
+            if (hasRelevantContext && memory.messages.length > 0) {
+                systemPrompt += '\n\nBoth note context and conversation history are available. Choose the most relevant source(s) to answer the query.';
+            }
+            else if (hasRelevantContext) {
+                systemPrompt += '\n\nOnly note context is available.';
+            }
+            else if (memory.messages.length > 0) {
+                systemPrompt += '\n\nOnly conversation history is available.';
+            }
+            else {
+                systemPrompt += '\n\nNo context or history available. Answer based on general knowledge.';
             }
             systemPrompt += '\n\nYou can suggest edits to the note by starting your response with "[EDIT]" followed by the complete new content for the note. Otherwise, be concise and relevant to the user\'s query.';
-            console.log('[LangChainService] System prompt length:', systemPrompt.length);
+            console.log('[LangChainService] System prompt:', {
+                length: systemPrompt.length,
+                preview: systemPrompt.substring(0, 200) + '...' // First 200 chars of system prompt
+            });
             const systemMessage = new messages_1.SystemMessage(systemPrompt);
             // Create human message
             const humanMessage = new messages_1.HumanMessage(message);
+            // Construct messages array with memory and current messages
+            // Build message array including memory
+            const messages = [
+                systemMessage,
+                ...memory.messages, // Include previous conversation
+                humanMessage, // Add current message last
+            ];
+            console.log('[LangChainService] Sending messages to LLM:', {
+                totalMessages: messages.length,
+                systemMessage: messages[0]._getType(),
+                memoryMessages: memory.messages.length,
+                finalMessage: messages[messages.length - 1]._getType()
+            });
             console.log('[LangChainService] Sending request to LLM...');
-            const response = await this.llm.call([systemMessage, humanMessage], {
-                callbacks: tracer ? [tracer] : undefined,
+            const response = await this.model.call(messages, {
+                callbacks,
                 tags: ['joplin-chat'],
                 metadata: {
                     contextCount: contexts.length,
                     messageLength: message.length,
-                    systemPromptLength: systemPrompt.length
+                    systemPromptLength: systemPrompt.length,
+                    memoryMessageCount: memory.messages.length
                 }
             });
+            // Update memory with the new messages
+            const aiMessage = new messages_1.AIMessage(response.content);
+            memory.messages.push(humanMessage);
+            memory.messages.push(aiMessage);
+            memory.maxMessages = this.maxMemoryMessages;
+            await this.memoryStore.update(noteId || 'default', memory);
             console.log('[LangChainService] Received response from LLM:', { responseLength: response.content.length });
             // Chain end is handled automatically
             const responseContent = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);

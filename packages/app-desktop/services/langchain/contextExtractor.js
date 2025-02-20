@@ -43,9 +43,10 @@ class ContextExtractor {
                 // Score based on query term presence and position
                 const queryTerms = query.toLowerCase().split(/\s+/);
                 const content = doc.pageContent.toLowerCase();
-                // Base score on term frequency
+                // Escape special regex characters and base score on term frequency
                 let score = queryTerms.reduce((sum, term) => {
-                    const count = (content.match(new RegExp(term, 'g')) || []).length;
+                    const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const count = (content.match(new RegExp(escapedTerm, 'g')) || []).length;
                     return sum + (count > 0 ? 1 : 0);
                 }, 0) / queryTerms.length;
                 // Boost score if all terms are present

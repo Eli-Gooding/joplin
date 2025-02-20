@@ -1,4 +1,10 @@
 export interface LangChainEnvVariables {
+    MODEL_TYPE: 'openai' | 'llama';
+    // OpenAI Settings
+    OPENAI_API_KEY?: string;
+    // Llama Settings
+    LLAMA_ENDPOINT?: string;
+    // LangSmith Settings
     LANGCHAIN_ENDPOINT?: string;
     LANGCHAIN_API_KEY?: string;
     LANGCHAIN_PROJECT?: string;
@@ -6,7 +12,6 @@ export interface LangChainEnvVariables {
     LANGCHAIN_TEMPERATURE?: string;
     LANGCHAIN_MAX_TOKENS?: string;
     LANGCHAIN_TRACING_V2?: string;
-    OPENAI_API_KEY?: string;
 }
 
 import Setting from '@joplin/lib/models/Setting';
@@ -14,6 +19,12 @@ import Setting from '@joplin/lib/models/Setting';
 export function getEnvVariables(): LangChainEnvVariables {
     // Debug: Log all settings
     const settings = {
+        MODEL_TYPE: Setting.value('modelType') as 'openai' | 'llama',
+        // OpenAI Settings
+        OPENAI_API_KEY: Setting.value('openaiApiKey'),
+        // Llama Settings
+        LLAMA_ENDPOINT: Setting.value('llamaEndpoint'),
+        // LangSmith Settings
         LANGCHAIN_ENDPOINT: Setting.value('langchainEndpoint'),
         LANGCHAIN_API_KEY: Setting.value('langchainApiKey'),
         LANGCHAIN_PROJECT: Setting.value('langchainProject'),
@@ -21,7 +32,6 @@ export function getEnvVariables(): LangChainEnvVariables {
         LANGCHAIN_TEMPERATURE: Setting.value('langchainTemperature'),
         LANGCHAIN_MAX_TOKENS: Setting.value('langchainMaxTokens'),
         LANGCHAIN_TRACING_V2: Setting.value('langchainApiKey') ? 'true' : undefined,  // Enable tracing only if we have a LangSmith API key
-        OPENAI_API_KEY: Setting.value('openaiApiKey'),
     };
     
     console.log('[Config] Current settings:', {
@@ -34,9 +44,15 @@ export function getEnvVariables(): LangChainEnvVariables {
 }
 
 export function validateEnvVariables(env: LangChainEnvVariables): void {
-    // First check OpenAI API key as it's critical
-    if (!env.OPENAI_API_KEY) {
-        throw new Error('OPENAI_API_KEY is required for the chat service to function.');
+    // Validate based on model type
+    if (env.MODEL_TYPE === 'openai') {
+        if (!env.OPENAI_API_KEY) {
+            throw new Error('OpenAI API key is required when using OpenAI model.');
+        }
+    } else if (env.MODEL_TYPE === 'llama') {
+        if (!env.LLAMA_ENDPOINT) {
+            throw new Error('Llama endpoint URL is required when using Llama model.');
+        }
     }
 
     // Then check LangSmith variables if tracing is needed

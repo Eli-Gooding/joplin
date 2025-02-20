@@ -5,6 +5,12 @@ const Setting_1 = require("@joplin/lib/models/Setting");
 function getEnvVariables() {
     // Debug: Log all settings
     const settings = {
+        MODEL_TYPE: Setting_1.default.value('modelType'),
+        // OpenAI Settings
+        OPENAI_API_KEY: Setting_1.default.value('openaiApiKey'),
+        // Llama Settings
+        LLAMA_ENDPOINT: Setting_1.default.value('llamaEndpoint'),
+        // LangSmith Settings
         LANGCHAIN_ENDPOINT: Setting_1.default.value('langchainEndpoint'),
         LANGCHAIN_API_KEY: Setting_1.default.value('langchainApiKey'),
         LANGCHAIN_PROJECT: Setting_1.default.value('langchainProject'),
@@ -12,7 +18,6 @@ function getEnvVariables() {
         LANGCHAIN_TEMPERATURE: Setting_1.default.value('langchainTemperature'),
         LANGCHAIN_MAX_TOKENS: Setting_1.default.value('langchainMaxTokens'),
         LANGCHAIN_TRACING_V2: Setting_1.default.value('langchainApiKey') ? 'true' : undefined, // Enable tracing only if we have a LangSmith API key
-        OPENAI_API_KEY: Setting_1.default.value('openaiApiKey'),
     };
     console.log('[Config] Current settings:', Object.assign(Object.assign({}, settings), { OPENAI_API_KEY: settings.OPENAI_API_KEY ? '***' : undefined, LANGCHAIN_API_KEY: settings.LANGCHAIN_API_KEY ? '***' : undefined }));
     return settings;
@@ -20,9 +25,16 @@ function getEnvVariables() {
 exports.getEnvVariables = getEnvVariables;
 function validateEnvVariables(env) {
     var _a;
-    // First check OpenAI API key as it's critical
-    if (!env.OPENAI_API_KEY) {
-        throw new Error('OPENAI_API_KEY is required for the chat service to function.');
+    // Validate based on model type
+    if (env.MODEL_TYPE === 'openai') {
+        if (!env.OPENAI_API_KEY) {
+            throw new Error('OpenAI API key is required when using OpenAI model.');
+        }
+    }
+    else if (env.MODEL_TYPE === 'llama') {
+        if (!env.LLAMA_ENDPOINT) {
+            throw new Error('Llama endpoint URL is required when using Llama model.');
+        }
     }
     // Then check LangSmith variables if tracing is needed
     const langsmithVars = ['LANGCHAIN_ENDPOINT', 'LANGCHAIN_API_KEY', 'LANGCHAIN_PROJECT'];

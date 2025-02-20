@@ -526,7 +526,13 @@ packages/app-desktop/services/langchain/contextExtractor.js
 packages/app-desktop/services/langchain/diffGenerator.js
 packages/app-desktop/services/langchain/env.js
 packages/app-desktop/services/langchain/langchainService.js
+packages/app-desktop/services/langchain/memory/inMemoryStore.js
+packages/app-desktop/services/langchain/memory/types.js
+packages/app-desktop/services/langchain/models/base.js
+packages/app-desktop/services/langchain/models/llama.js
+packages/app-desktop/services/langchain/models/openai.js
 packages/app-desktop/services/langchain/settings.js
+packages/app-desktop/services/langchain/tools/memory.js
 packages/app-desktop/services/langchain/tracer.js
 packages/app-desktop/services/plugins/BackOffHandler.js
 packages/app-desktop/services/plugins/PlatformImplementation.js
